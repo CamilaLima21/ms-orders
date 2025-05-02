@@ -1,0 +1,95 @@
+package br.com.fiap.msorders.application.service;
+
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.stream.Collectors;
+
+import org.springframework.stereotype.Service;
+import jakarta.transaction.Transactional;
+
+import br.com.fiap.msorders.application.dto.OrderDto;
+import br.com.fiap.msorders.application.mapper.OrderMapper;
+import br.com.fiap.msorders.domain.enums.OrderStatus;
+import br.com.fiap.msorders.domain.model.Order;
+import br.com.fiap.msorders.infrastructure.persistence.entity.OrderEntity;
+import br.com.fiap.msorders.infrastructure.persistence.entity.OrderItemEntity;
+import br.com.fiap.msorders.infrastructure.persistence.repository.OrderRepository;
+import br.com.fiap.msorders.infrastructure.web.exceptions.ResourceNotFoundException;
+
+@Service
+public class OrderService {
+
+    private final OrderRepository orderRepository;
+    private final OrderMapper orderMapper;
+
+    public OrderService(OrderRepository orderRepository, OrderMapper orderMapper) {
+        this.orderRepository = orderRepository;
+        this.orderMapper = orderMapper;
+    }
+
+    @Transactional
+    public OrderDto createOrder(OrderDto orderDto) {
+        if (orderDto.clientId() <= 0) {
+            throw new IllegalArgumentException("Client ID must be provided");
+        }
+
+        Order order = orderMapper.toDomain(orderDto);
+        order.setStatus(OrderStatus.CREATED);
+        order.setCreatedAt(LocalDateTime.now());
+        order.setUpdatedAt(LocalDateTime.now());
+
+        OrderEntity saved = orderRepository.save(orderMapper.toEntity(order));
+        return orderMapper.toDto(orderMapper.toDomain(saved));
+    }
+
+    public OrderDto findOrderById(long id) throws ResourceNotFoundException {
+        OrderEntity orderEntity = orderRepository.findById(id)
+            .orElseThrow(() -> new ResourceNotFoundException("Order not found"));
+        return orderMapper.toDto(orderMapper.toDomain(orderEntity));
+    }
+
+    public List<OrderDto> findAllOrders() {
+        return orderRepository.findAll().stream()
+            .map(orderMapper::toDomain)
+            .map(orderMapper::toDto)
+            .collect(Collectors.toList());
+    }
+
+    @Transactional
+    public OrderDto updateOrder(Long id, OrderDto orderDto) throws ResourceNotFoundException {
+        OrderEntity existingOrder = orderRepository.findById(id)
+            .orElseThrow(() -> new ResourceNotFoundException("Pedido não encontrado"));
+
+        existingOrder.setClientId(orderDto.clientId());
+        existingOrder.setStatus(orderDto.status());
+        existingOrder.setTotal(orderDto.total());
+        existingOrder.setUpdatedAt(LocalDateTime.now());
+
+        existingOrder.getOrderItems().clear();
+
+        if (orderDto.item() != null) {
+            List<OrderItemEntity> newItems = orderDto.item().stream()
+                .map(dto -> {
+                    OrderItemEntity item = new OrderItemEntity();
+                    item.setProductId(dto.productId());
+                    item.setQuantity(dto.quantity());
+                    item.setPrice(dto.price());
+                    item.setOrder(existingOrder);
+                    return item;
+                }).collect(Collectors.toList());
+            existingOrder.getOrderItems().addAll(newItems);
+        }
+
+        OrderEntity saved = orderRepository.save(existingOrder);
+        return orderMapper.toDto(orderMapper.toDomain(saved));
+    }
+
+    @Transactional
+    public boolean deleteOrder(long id) {
+        if (orderRepository.existsById(id)) {
+            orderRepository.deleteById(id);
+            return true;
+        }
+        return false;
+    }
+}
