@@ -13,5 +13,5 @@ public record OrderDto(
     OrderStatus status,  
     LocalDateTime createdAt,  
     LocalDateTime updatedAt,  
-    List<OrderItemDto> item  
+    List<OrderItemDto> items  
 ) {}

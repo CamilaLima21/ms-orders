@@ -46,13 +46,13 @@ class OrderEntityTest {
         // Criar os OrderItemEntity associados a essa OrderEntity
         orderItem1 = new OrderItemEntity();
         orderItem1.setOrder(orderEntity);
-        orderItem1.setProductId(10L);
+        orderItem1.setProductSku("SKU123");
         orderItem1.setQuantity(2);
         orderItem1.setPrice(BigDecimal.valueOf(50));
 
         orderItem2 = new OrderItemEntity();
         orderItem2.setOrder(orderEntity);
-        orderItem2.setProductId(11L);
+        orderItem2.setProductSku("SKU223");
         orderItem2.setQuantity(3);
         orderItem2.setPrice(BigDecimal.valueOf(30));
 
@@ -64,7 +64,7 @@ class OrderEntityTest {
 
     @Test
     void shouldCreateOrderEntitySuccessfully() {
-        // Assert initial values
+        // Assert valores iniciais
         assertNotNull(orderEntity);
         assertEquals(orderId, orderEntity.getId());
         assertEquals(clientId, orderEntity.getClientId());
@@ -77,30 +77,30 @@ class OrderEntityTest {
 
     @Test
     void shouldAddOrderItemToOrder() {
-        // Setup new order item
+        // Setup: novo item de pedido
         OrderItemEntity newOrderItem = new OrderItemEntity();
         newOrderItem.setOrder(orderEntity);
-        newOrderItem.setProductId(12L);
+        newOrderItem.setProductSku("SKU123");
         newOrderItem.setQuantity(1);
         newOrderItem.setPrice(BigDecimal.valueOf(100));
 
-        // Action: Add the new order item
+        // Ação: adicionar novo item de pedido
         orderEntity.getOrderItems().add(newOrderItem);
 
-        // Assert the size of the list and the added item
+        // Assert: verificar o tamanho da lista e o item adicionado
         assertEquals(3, orderEntity.getOrderItems().size());
         assertTrue(orderEntity.getOrderItems().contains(newOrderItem));
     }
 
     @Test
     void shouldRemoveOrderItemFromOrder() {
-        // Setup initial order item to be removed
+        // Setup: item de pedido a ser removido
         OrderItemEntity orderItemToRemove = orderEntity.getOrderItems().get(0);
 
-        // Action: Remove the order item
+        // Ação: remover o item de pedido
         orderEntity.getOrderItems().remove(orderItemToRemove);
 
-        // Assert
+        // Assert: verificar que o item foi removido
         assertEquals(1, orderEntity.getOrderItems().size());
         assertFalse(orderEntity.getOrderItems().contains(orderItemToRemove));
     }
@@ -111,37 +111,36 @@ class OrderEntityTest {
         List<OrderItemEntity> newOrderItems = new ArrayList<>();
         OrderItemEntity newOrderItem = new OrderItemEntity();
         newOrderItem.setOrder(orderEntity);
-        newOrderItem.setProductId(13L);
+        newOrderItem.setProductSku("SKU123");
         newOrderItem.setQuantity(4);
         newOrderItem.setPrice(BigDecimal.valueOf(40));
         newOrderItems.add(newOrderItem);
 
-        // Action: Set new order item list
+        // Ação: configurar nova lista de itens do pedido
         orderEntity.setOrderItems(newOrderItems);
 
-        // Assert
+        // Assert: verificar que a lista foi configurada corretamente
         assertEquals(1, orderEntity.getOrderItems().size());
-        assertEquals(13L, orderEntity.getOrderItems().get(0).getProductId());
+        assertEquals("SKU123", orderEntity.getOrderItems().get(0).getProductSku());
     }
 
     @Test
     void shouldUpdateOrderEntityFields() {
-        // Action: Update fields
+        // Ação: atualizar os campos
         orderEntity.setTotal(BigDecimal.valueOf(600));
         orderEntity.setStatus(OrderStatus.PAID);
         LocalDateTime newUpdatedAt = LocalDateTime.now().plusMinutes(10);
         orderEntity.setUpdatedAt(newUpdatedAt);
 
-        // Assert
+        // Assert: verificar os valores atualizados
         assertEquals(BigDecimal.valueOf(600), orderEntity.getTotal());
         assertEquals(OrderStatus.PAID, orderEntity.getStatus());
         assertEquals(newUpdatedAt, orderEntity.getUpdatedAt());
     }
 
-    
     @Test
     void shouldCreateOrderEntityWithEmptyOrderItems() {
-        // Setup an OrderEntity with no order items
+        // Setup: OrderEntity sem itens de pedido
         OrderEntity emptyOrderEntity = new OrderEntity();
         emptyOrderEntity.setId(orderId);
         emptyOrderEntity.setClientId(clientId);
@@ -151,7 +150,7 @@ class OrderEntityTest {
         emptyOrderEntity.setUpdatedAt(updatedAt);
         emptyOrderEntity.setOrderItems(new ArrayList<>());  // Usar ArrayList aqui
 
-        // Assert
+        // Assert: garantir que não há itens de pedido
         assertNotNull(emptyOrderEntity);
         assertEquals(0, emptyOrderEntity.getOrderItems().size());
     }

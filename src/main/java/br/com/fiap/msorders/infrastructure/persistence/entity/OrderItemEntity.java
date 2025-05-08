@@ -22,7 +22,7 @@ public class OrderItemEntity {
     private OrderEntity order;
 
     @Column(nullable = false)
-    private long productId;
+    private String productSku;
 
     @Column(nullable = false)
     private Integer quantity;
@@ -30,7 +30,7 @@ public class OrderItemEntity {
     @Column(nullable = false)
     private BigDecimal price;
     
-    public OrderItemEntity(OrderEntity order, long productId, int quantity, BigDecimal price) {
+    public OrderItemEntity(OrderEntity order, String productSku, int quantity, BigDecimal price) {
         if (quantity <= 0) {
             throw new IllegalArgumentException("Quantity must be greater than zero.");
         }
@@ -38,7 +38,7 @@ public class OrderItemEntity {
             throw new IllegalArgumentException("Price must be greater than or equal to zero.");
         }
         this.order = order;
-        this.productId = productId;
+        this.productSku = productSku;
         this.quantity = quantity;
         this.price = price;
     }

@@ -5,33 +5,56 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
-import jakarta.transaction.Transactional;
 
 import br.com.fiap.msorders.application.dto.OrderDto;
+import br.com.fiap.msorders.application.dto.OrderItemDto;
 import br.com.fiap.msorders.application.mapper.OrderMapper;
 import br.com.fiap.msorders.domain.enums.OrderStatus;
 import br.com.fiap.msorders.domain.model.Order;
+import br.com.fiap.msorders.infrastructure.integration.service.ClientServiceClient;
+import br.com.fiap.msorders.infrastructure.integration.service.ProductServiceClient;
 import br.com.fiap.msorders.infrastructure.persistence.entity.OrderEntity;
 import br.com.fiap.msorders.infrastructure.persistence.entity.OrderItemEntity;
 import br.com.fiap.msorders.infrastructure.persistence.repository.OrderRepository;
 import br.com.fiap.msorders.infrastructure.web.exceptions.ResourceNotFoundException;
+import jakarta.transaction.Transactional;
 
 @Service
 public class OrderService {
 
     private final OrderRepository orderRepository;
     private final OrderMapper orderMapper;
+    private final ClientServiceClient clientServiceClient;
+    private final ProductServiceClient productServiceClient;
 
-    public OrderService(OrderRepository orderRepository, OrderMapper orderMapper) {
+
+    public OrderService(OrderRepository orderRepository, OrderMapper orderMapper,
+    		ClientServiceClient clientServiceClient, ProductServiceClient productServiceClient) {
         this.orderRepository = orderRepository;
         this.orderMapper = orderMapper;
+        this.clientServiceClient = clientServiceClient;
+        this.productServiceClient = productServiceClient;
     }
 
     @Transactional
     public OrderDto createOrder(OrderDto orderDto) {
-        if (orderDto.clientId() <= 0) {
+        if (orderDto.clientId() == 0) {
             throw new IllegalArgumentException("Client ID must be provided");
         }
+
+        clientServiceClient.validateClientExists(orderDto.clientId());
+
+        if (orderDto.items() == null || orderDto.items().isEmpty()) {
+            throw new IllegalArgumentException("Order must contain at least one item.");
+        }
+
+        
+        List<String> skus = orderDto.items()
+                .stream()
+                .map(OrderItemDto::productSku)
+                .toList();
+
+        productServiceClient.validateSkus(skus);
 
         Order order = orderMapper.toDomain(orderDto);
         order.setStatus(OrderStatus.CREATED);
@@ -41,6 +64,8 @@ public class OrderService {
         OrderEntity saved = orderRepository.save(orderMapper.toEntity(order));
         return orderMapper.toDto(orderMapper.toDomain(saved));
     }
+
+
 
     public OrderDto findOrderById(long id) throws ResourceNotFoundException {
         OrderEntity orderEntity = orderRepository.findById(id)
@@ -67,11 +92,11 @@ public class OrderService {
 
         existingOrder.getOrderItems().clear();
 
-        if (orderDto.item() != null) {
-            List<OrderItemEntity> newItems = orderDto.item().stream()
+        if (orderDto.items() != null) {
+            List<OrderItemEntity> newItems = orderDto.items().stream()
                 .map(dto -> {
                     OrderItemEntity item = new OrderItemEntity();
-                    item.setProductId(dto.productId());
+                    item.setProductSku(dto.productSku());
                     item.setQuantity(dto.quantity());
                     item.setPrice(dto.price());
                     item.setOrder(existingOrder);

@@ -1,19 +1,22 @@
 package br.com.fiap.msorders.infrastructure.web.controller;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+
+import br.com.fiap.msorders.application.dto.OrderDto;
+import br.com.fiap.msorders.application.dto.OrderItemDto;
+import br.com.fiap.msorders.application.service.OrderService;
+import br.com.fiap.msorders.domain.enums.OrderStatus;
+import br.com.fiap.msorders.infrastructure.web.exceptions.ResourceNotFoundException;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -21,147 +24,139 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;  // Importa o módulo para lidar com LocalDateTime
-
-import br.com.fiap.msorders.application.dto.OrderDto;
-import br.com.fiap.msorders.application.dto.OrderItemDto;
-import br.com.fiap.msorders.application.service.OrderService;
-import br.com.fiap.msorders.infrastructure.web.exceptions.ResourceNotFoundException;
-
 @SpringBootTest
+@TestPropertySource(properties = {
+    "ms.clients.url=localhost:8081",
+    "ms.products.url=localhost:8082"
+})
 public class OrderControllerTest {
 
     private MockMvc mockMvc;
 
     @Mock
-    private OrderService orderService;  // Mock do serviço
+    private OrderService orderService;
 
     @InjectMocks
-    private OrderController orderController;  // Injeção do mock no controlador
+    private OrderController orderController;
 
     private ObjectMapper objectMapper;
 
     @BeforeEach
     void setUp() {
         objectMapper = new ObjectMapper();
-        objectMapper.registerModule(new JavaTimeModule());  // Registra o módulo para lidar com LocalDateTime
-        mockMvc = MockMvcBuilders.standaloneSetup(orderController).build();  // Configura o MockMvc corretamente
+        objectMapper.registerModule(new JavaTimeModule());
+        mockMvc = MockMvcBuilders.standaloneSetup(orderController).build();
     }
 
     @Test
     void shouldCreateOrder() throws Exception {
-        // Arrange
-        OrderItemDto itemDto = new OrderItemDto(1L, 1L, 1L, 5, BigDecimal.valueOf(100));
-        OrderDto orderDto = new OrderDto(0L, 1L, BigDecimal.valueOf(500), null, LocalDateTime.now(), LocalDateTime.now(), List.of(itemDto));
-        OrderDto createdOrder = new OrderDto(1L, 1L, BigDecimal.valueOf(500), null, LocalDateTime.now(), LocalDateTime.now(), List.of(itemDto));
+        OrderItemDto itemDto = new OrderItemDto(1L, 1L, "SKU123", 5, BigDecimal.valueOf(100));
+        LocalDateTime now = LocalDateTime.now();
+        OrderDto orderDto = new OrderDto(0L, 1L, BigDecimal.valueOf(500), OrderStatus.CREATED, now, now, List.of(itemDto));
+        OrderDto createdOrder = new OrderDto(1L, 1L, BigDecimal.valueOf(500), OrderStatus.CREATED, now, now, List.of(itemDto));
 
-        when(orderService.createOrder(orderDto)).thenReturn(createdOrder);
+        when(orderService.createOrder(any(OrderDto.class))).thenReturn(createdOrder);
 
-        // Act & Assert
         mockMvc.perform(post("/orders")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(orderDto)))
-                .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.id").value(1L))
-                .andExpect(jsonPath("$.clientId").value(1L))
-                .andExpect(jsonPath("$.total").value(500))
-                .andExpect(jsonPath("$.item.size()").value(1));
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(orderDto)))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.id").value(1L))
+            .andExpect(jsonPath("$.clientId").value(1L))
+            .andExpect(jsonPath("$.total").value(500))
+            .andExpect(jsonPath("$.status").value("CREATED"))
+            .andExpect(jsonPath("$.items.length()").value(1));
     }
-
 
     @Test
     void shouldGetOrderById() throws Exception {
-        // Arrange
-        OrderItemDto itemDto = new OrderItemDto(1L, 1L, 1L, 5, BigDecimal.valueOf(100));
-        OrderDto orderDto = new OrderDto(1L, 1L, BigDecimal.valueOf(500), null, LocalDateTime.now(), LocalDateTime.now(), List.of(itemDto));
+        OrderItemDto itemDto = new OrderItemDto(1L, 1L, "SKU123", 5, BigDecimal.valueOf(100));
+        LocalDateTime now = LocalDateTime.now();
+        OrderDto orderDto = new OrderDto(1L, 1L, BigDecimal.valueOf(500), OrderStatus.CREATED, now, now, List.of(itemDto));
+
         when(orderService.findOrderById(1L)).thenReturn(orderDto);
 
-        // Act & Assert
         mockMvc.perform(get("/orders/1"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").value(1L))
-                .andExpect(jsonPath("$.total").value(500))
-                .andExpect(jsonPath("$.item.size()").value(1));
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.id").value(1L))
+            .andExpect(jsonPath("$.clientId").value(1L))
+            .andExpect(jsonPath("$.status").value("CREATED"))
+            .andExpect(jsonPath("$.items.length()").value(1));
     }
 
     @Test
     void shouldReturnNotFoundWhenOrderNotExist() throws Exception {
-        // Arrange
         when(orderService.findOrderById(999L)).thenThrow(new ResourceNotFoundException("Order not found"));
 
-        // Act & Assert
         mockMvc.perform(get("/orders/999"))
-                .andExpect(status().isNotFound());
+            .andExpect(status().isNotFound());
     }
 
     @Test
     void shouldGetAllOrders() throws Exception {
-        // Arrange
-        OrderItemDto itemDto = new OrderItemDto(1L, 1L, 1L, 5, BigDecimal.valueOf(100));
-        OrderDto orderDto1 = new OrderDto(1L, 1L, BigDecimal.valueOf(500), null, LocalDateTime.now(), LocalDateTime.now(), List.of(itemDto));
-        OrderDto orderDto2 = new OrderDto(2L, 1L, BigDecimal.valueOf(300), null, LocalDateTime.now(), LocalDateTime.now(), List.of(itemDto));
-        when(orderService.findAllOrders()).thenReturn(List.of(orderDto1, orderDto2));
+        OrderItemDto itemDto = new OrderItemDto(1L, 1L, "SKU123", 5, BigDecimal.valueOf(100));
+        LocalDateTime now = LocalDateTime.now();
+        OrderDto order1 = new OrderDto(1L, 1L, BigDecimal.valueOf(500), OrderStatus.CREATED, now, now, List.of(itemDto));
+        OrderDto order2 = new OrderDto(2L, 2L, BigDecimal.valueOf(300), OrderStatus.CREATED, now, now, List.of(itemDto));
 
-        // Act & Assert
+        when(orderService.findAllOrders()).thenReturn(List.of(order1, order2));
+
         mockMvc.perform(get("/orders"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.size()").value(2))
-                .andExpect(jsonPath("$[0].id").value(1L))
-                .andExpect(jsonPath("$[1].id").value(2L));
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.length()").value(2))
+            .andExpect(jsonPath("$[0].id").value(1L))
+            .andExpect(jsonPath("$[1].id").value(2L));
     }
 
     @Test
     void shouldUpdateOrder() throws Exception {
-        // Arrange
-        OrderItemDto itemDto = new OrderItemDto(1L, 1L, 1L, 5, BigDecimal.valueOf(100));
-        OrderDto orderDto = new OrderDto(1L, 1L, BigDecimal.valueOf(600), null, LocalDateTime.now(), LocalDateTime.now(), List.of(itemDto));
-        OrderDto updatedOrder = new OrderDto(1L, 1L, BigDecimal.valueOf(600), null, LocalDateTime.now(), LocalDateTime.now(), List.of(itemDto));
-        when(orderService.updateOrder(1L, orderDto)).thenReturn(updatedOrder);
+        OrderItemDto itemDto = new OrderItemDto(1L, 1L, "SKU123", 3, BigDecimal.valueOf(100));
+        LocalDateTime now = LocalDateTime.now();
+        OrderDto inputOrder = new OrderDto(0L, 1L, BigDecimal.valueOf(300), OrderStatus.CREATED, now, now, List.of(itemDto));
+        OrderDto updatedOrder = new OrderDto(1L, 1L, BigDecimal.valueOf(300), OrderStatus.CREATED, now, now, List.of(itemDto));
 
-        // Act & Assert
+        when(orderService.updateOrder(1L, inputOrder)).thenReturn(updatedOrder);
+
         mockMvc.perform(put("/orders/1")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(orderDto)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.total").value(600))
-                .andExpect(jsonPath("$.item.size()").value(1));
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(inputOrder)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.id").value(1L))
+            .andExpect(jsonPath("$.total").value(300));
     }
 
     @Test
-    void shouldReturnNotFoundWhenUpdateOrderNotExist() throws Exception {
-        // Arrange
-        OrderItemDto itemDto = new OrderItemDto(1L, 1L, 1L, 5, BigDecimal.valueOf(100));
-        OrderDto orderDto = new OrderDto(999L, 1L, BigDecimal.valueOf(700), null, LocalDateTime.now(), LocalDateTime.now(), List.of(itemDto));
-        when(orderService.updateOrder(999L, orderDto)).thenThrow(new ResourceNotFoundException("Order not found"));
+    void shouldReturnNotFoundWhenUpdateFails() throws Exception {
+        OrderItemDto itemDto = new OrderItemDto(1L, 1L, "SKU123", 3, BigDecimal.valueOf(100));
+        LocalDateTime now = LocalDateTime.now();
+        OrderDto inputOrder = new OrderDto(0L, 1L, BigDecimal.valueOf(300), OrderStatus.CREATED, now, now, List.of(itemDto));
 
-        // Act & Assert
+        when(orderService.updateOrder(999L, inputOrder)).thenThrow(new ResourceNotFoundException("Order not found"));
+
         mockMvc.perform(put("/orders/999")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(orderDto)))
-                .andExpect(status().isNotFound());
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(inputOrder)))
+            .andExpect(status().isNotFound());
     }
 
     @Test
-    void shouldDeleteOrder() throws Exception {
-        // Arrange
+    void shouldDeleteOrderSuccessfully() throws Exception {
         when(orderService.deleteOrder(1L)).thenReturn(true);
 
-        // Act & Assert
         mockMvc.perform(delete("/orders/1"))
-                .andExpect(status().isNoContent());
+            .andExpect(status().isNoContent());
     }
 
     @Test
-    void shouldReturnNotFoundWhenDeleteOrderNotExist() throws Exception {
-        // Arrange
+    void shouldReturnNotFoundWhenDeleteFails() throws Exception {
         when(orderService.deleteOrder(999L)).thenReturn(false);
 
-        // Act & Assert
         mockMvc.perform(delete("/orders/999"))
-                .andExpect(status().isNotFound());
+            .andExpect(status().isNotFound());
     }
 }
+

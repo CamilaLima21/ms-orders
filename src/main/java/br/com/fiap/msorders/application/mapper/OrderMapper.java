@@ -1,12 +1,13 @@
 package br.com.fiap.msorders.application.mapper;
 
+import java.util.ArrayList;
+import java.util.stream.Collectors;
+
+import org.springframework.stereotype.Component;
+
 import br.com.fiap.msorders.application.dto.OrderDto;
 import br.com.fiap.msorders.domain.model.Order;
 import br.com.fiap.msorders.infrastructure.persistence.entity.OrderEntity;
-import org.springframework.stereotype.Component;
-
-import java.util.ArrayList;
-import java.util.stream.Collectors;
 
 @Component
 public class OrderMapper {
@@ -25,8 +26,8 @@ public class OrderMapper {
             dto.status(),
             dto.createdAt(),
             dto.updatedAt(),
-            dto.item() != null
-                ? dto.item().stream().map(orderItemMapper::toDomain).collect(Collectors.toList())
+            dto.items() != null
+                ? dto.items().stream().map(orderItemMapper::toDomain).collect(Collectors.toList())
                 : new ArrayList<>()
         );
     }

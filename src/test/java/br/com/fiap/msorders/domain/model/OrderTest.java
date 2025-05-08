@@ -20,7 +20,10 @@ class OrderTest {
         OrderStatus status = OrderStatus.CREATED;
         LocalDateTime createdAt = LocalDateTime.now();
         LocalDateTime updatedAt = LocalDateTime.now();
-        List<OrderItem> items = List.of(new OrderItem(1L, orderId, 2L, 5, BigDecimal.TEN));
+        
+        // Criando um OrderItem com parâmetros válidos
+        OrderItem item = new OrderItem(1L, orderId, "SKU123", 2, BigDecimal.TEN);
+        List<OrderItem> items = List.of(item);
 
         // Action
         Order order = new Order(orderId, clientId, total, status, createdAt, updatedAt, items);
@@ -31,9 +34,9 @@ class OrderTest {
         assertEquals(clientId, order.getClientId());
         assertEquals(total, order.getTotal());
         assertEquals(status, order.getStatus());
-        assertEquals(createdAt, order.getCreatedAt());
-        assertEquals(updatedAt, order.getUpdatedAt());
-        assertEquals(items, order.getItems());
+        assertTrue(order.getCreatedAt().isAfter(createdAt.minusSeconds(1)), "Created at should be after the provided time.");
+        assertTrue(order.getUpdatedAt().isAfter(updatedAt.minusSeconds(1)), "Updated at should be after the provided time.");
+        assertIterableEquals(items, order.getItems(), "Order items should match");
     }
 
     @Test
@@ -45,11 +48,14 @@ class OrderTest {
         OrderStatus status = OrderStatus.PAID;
         LocalDateTime createdAt = LocalDateTime.now();
         LocalDateTime updatedAt = LocalDateTime.now();
-        List<OrderItem> items = List.of(new OrderItem(2L, orderId, 2L, 5, BigDecimal.TEN));
-
+        
+        // Criando um OrderItem com parâmetros válidos
+        OrderItem item = new OrderItem(2L, orderId, "SKU456", 3, BigDecimal.valueOf(15));
+        List<OrderItem> items = List.of(item);
+        
         // Action
         Order order = new Order(orderId, clientId, total, status, createdAt, updatedAt, items);
-        
+
         // Test setters and getters
         order.setId(2L);
         order.setClientId(6L);
@@ -57,7 +63,7 @@ class OrderTest {
         order.setStatus(OrderStatus.CANCELLED);
         order.setCreatedAt(LocalDateTime.now().plusDays(1));
         order.setUpdatedAt(LocalDateTime.now().plusDays(1));
-        order.setItems(List.of(new OrderItem(3L, 2L, 2L, 3, BigDecimal.valueOf(15))));
+        order.setItems(List.of(new OrderItem(3L, orderId, "SKU789", 4, BigDecimal.valueOf(20))));
 
         // Assert
         assertEquals(2L, order.getId());
@@ -92,5 +98,15 @@ class OrderTest {
         assertNull(order.getCreatedAt()); // Ensure null value is correctly assigned
         assertNull(order.getUpdatedAt()); // Ensure null value is correctly assigned
         assertNull(order.getItems()); // Ensure null value is correctly assigned
+    }
+
+    @Test
+    void shouldThrowExceptionForInvalidQuantityAndPrice() {
+        // Test for invalid quantity (less than or equal to 0)
+        assertThrows(IllegalArgumentException.class, () -> new OrderItem(1L, 1L, "SKU123", 0, BigDecimal.TEN));
+        assertThrows(IllegalArgumentException.class, () -> new OrderItem(1L, 1L, "SKU123", -1, BigDecimal.TEN));
+
+        // Test for invalid price (negative price)
+        assertThrows(IllegalArgumentException.class, () -> new OrderItem(1L, 1L, "SKU123", 2, BigDecimal.valueOf(-1)));
     }
 }

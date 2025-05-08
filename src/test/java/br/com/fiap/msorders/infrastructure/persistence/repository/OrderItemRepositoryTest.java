@@ -1,20 +1,30 @@
 package br.com.fiap.msorders.infrastructure.persistence.repository;
 
-import br.com.fiap.msorders.infrastructure.persistence.entity.OrderEntity;
-import br.com.fiap.msorders.infrastructure.persistence.entity.OrderItemEntity;
-import br.com.fiap.msorders.domain.enums.OrderStatus;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
+import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.test.context.TestPropertySource;
+
+import br.com.fiap.msorders.domain.enums.OrderStatus;
+import br.com.fiap.msorders.infrastructure.persistence.entity.OrderEntity;
+import br.com.fiap.msorders.infrastructure.persistence.entity.OrderItemEntity;
 
 @DataJpaTest
+@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.ANY)
+@TestPropertySource(properties = {
+    "spring.jpa.hibernate.ddl-auto=create-drop"
+})
 class OrderItemRepositoryTest {
 
     @Autowired
@@ -23,18 +33,20 @@ class OrderItemRepositoryTest {
     @Autowired
     private OrderRepository orderRepository;
 
+    // Método para criar e salvar um OrderEntity
     private OrderEntity buildOrderEntity() {
         OrderEntity order = new OrderEntity();
         order.setClientId(1L);
         order.setTotal(BigDecimal.valueOf(200.00));
         order.setStatus(OrderStatus.CREATED);
-        return orderRepository.save(order); // Save and get order with ID
+        return orderRepository.save(order); // Salva e retorna a ordem com ID
     }
 
+    // Método para criar um OrderItemEntity associado a um OrderEntity
     private OrderItemEntity buildOrderItemEntity(OrderEntity order) {
         OrderItemEntity item = new OrderItemEntity();
         item.setOrder(order);
-        item.setProductId(100L);
+        item.setProductSku("SKU100");
         item.setQuantity(2);
         item.setPrice(BigDecimal.valueOf(50.00));
         return item;
@@ -50,7 +62,7 @@ class OrderItemRepositoryTest {
 
         assertNotNull(savedItem.getId());
         assertEquals(order.getId(), savedItem.getOrder().getId());
-        assertEquals(100L, savedItem.getProductId());
+        assertEquals("SKU100", savedItem.getProductSku());
         assertEquals(2, savedItem.getQuantity());
         assertEquals(BigDecimal.valueOf(50.00), savedItem.getPrice());
     }

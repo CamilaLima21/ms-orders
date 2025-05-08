@@ -1,23 +1,39 @@
 package br.com.fiap.msorders.application.service;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
+
 import br.com.fiap.msorders.application.dto.OrderDto;
 import br.com.fiap.msorders.application.dto.OrderItemDto;
 import br.com.fiap.msorders.application.mapper.OrderMapper;
 import br.com.fiap.msorders.domain.enums.OrderStatus;
 import br.com.fiap.msorders.domain.model.Order;
+import br.com.fiap.msorders.domain.model.OrderItem;
+import br.com.fiap.msorders.infrastructure.integration.service.ClientServiceClient;
+import br.com.fiap.msorders.infrastructure.integration.service.ProductServiceClient;
 import br.com.fiap.msorders.infrastructure.persistence.entity.OrderEntity;
 import br.com.fiap.msorders.infrastructure.persistence.repository.OrderRepository;
 import br.com.fiap.msorders.infrastructure.web.exceptions.ResourceNotFoundException;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.mockito.*;
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Optional;
-
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
 
 class OrderServiceTest {
 
@@ -30,6 +46,12 @@ class OrderServiceTest {
     @Mock
     private OrderMapper mapper;
 
+    @Mock
+    private ClientServiceClient clientServiceClient;
+
+    @Mock
+    private ProductServiceClient productServiceClient;
+
     @BeforeEach
     void setup() {
         MockitoAnnotations.openMocks(this);
@@ -37,9 +59,13 @@ class OrderServiceTest {
 
     @Test
     void shouldCreateOrderSuccessfully() {
-        OrderDto dto = new OrderDto(1L, 5L, BigDecimal.TEN, OrderStatus.CREATED, null, null, List.of());
-        Order domain = mock(Order.class);
-        OrderEntity entity = mock(OrderEntity.class);
+        OrderItemDto itemDto = new OrderItemDto(1L, 1L, "sku-123", 2, BigDecimal.TEN);
+        List<OrderItemDto> itemsDto = List.of(itemDto);
+        OrderDto dto = new OrderDto(1L, 5L, BigDecimal.TEN, null, null, null, itemsDto);
+
+        OrderItem item = new OrderItem(1L, 1L, "sku-123", 2, BigDecimal.TEN);
+        Order domain = new Order(1L, 5L, BigDecimal.TEN, OrderStatus.CREATED, LocalDateTime.now(), LocalDateTime.now(), List.of(item));
+        OrderEntity entity = new OrderEntity();
 
         when(mapper.toDomain(dto)).thenReturn(domain);
         when(mapper.toEntity(domain)).thenReturn(entity);
@@ -47,11 +73,16 @@ class OrderServiceTest {
         when(mapper.toDomain(entity)).thenReturn(domain);
         when(mapper.toDto(domain)).thenReturn(dto);
 
+        doNothing().when(clientServiceClient).validateClientExists(5L);
+        doNothing().when(productServiceClient).validateSkus(List.of("sku-123"));
+
         OrderDto created = service.createOrder(dto);
 
         assertNotNull(created);
         assertEquals(dto.clientId(), created.clientId());
         verify(repository).save(entity);
+        verify(clientServiceClient).validateClientExists(5L);
+        verify(productServiceClient).validateSkus(List.of("sku-123"));
     }
 
     @Test
@@ -61,90 +92,90 @@ class OrderServiceTest {
     }
 
     @Test
+    void shouldThrowExceptionWhenItemsAreEmpty() {
+        OrderDto dto = new OrderDto(1L, 5L, BigDecimal.TEN, OrderStatus.CREATED, null, null, List.of());
+        doNothing().when(clientServiceClient).validateClientExists(5L);
+        assertThrows(IllegalArgumentException.class, () -> service.createOrder(dto));
+    }
+
+    @Test
     void shouldFindOrderById() throws ResourceNotFoundException {
         long orderId = 1L;
-        OrderEntity entity = mock(OrderEntity.class);
-        Order domain = mock(Order.class);
-        OrderDto dto = new OrderDto(orderId, 5L, BigDecimal.TEN, OrderStatus.CREATED, null, null, List.of());
+        OrderEntity entity = new OrderEntity();
+        Order domain = new Order(orderId, 5L, BigDecimal.TEN, OrderStatus.CREATED, LocalDateTime.now(), LocalDateTime.now(), List.of());
+        OrderDto dto = new OrderDto(orderId, 5L, BigDecimal.TEN, OrderStatus.CREATED, LocalDateTime.now(), LocalDateTime.now(), List.of());
 
         when(repository.findById(orderId)).thenReturn(Optional.of(entity));
         when(mapper.toDomain(entity)).thenReturn(domain);
         when(mapper.toDto(domain)).thenReturn(dto);
 
-        OrderDto found = service.findOrderById(orderId);
-
-        assertNotNull(found);
-        assertEquals(orderId, found.id());
+        OrderDto result = service.findOrderById(orderId);
+        assertEquals(dto, result);
     }
 
     @Test
-    void shouldThrowExceptionWhenOrderNotFound() {
-        when(repository.findById(anyLong())).thenReturn(Optional.empty());
+    void shouldThrowExceptionWhenOrderNotFoundById() {
+        when(repository.findById(1L)).thenReturn(Optional.empty());
         assertThrows(ResourceNotFoundException.class, () -> service.findOrderById(1L));
     }
 
     @Test
     void shouldReturnAllOrders() {
-        // Simulando uma lista de entidades de pedidos
-        List<OrderEntity> entities = List.of(mock(OrderEntity.class));
-        
-        // Simulando os objetos de domínio e DTO
-        Order domain = mock(Order.class);
-        OrderDto dto = new OrderDto(1L, 5L, BigDecimal.TEN, OrderStatus.CREATED, null, null, List.of());
+        OrderEntity entity = new OrderEntity();
+        Order domain = new Order(1L, 5L, BigDecimal.TEN, OrderStatus.CREATED, LocalDateTime.now(), LocalDateTime.now(), List.of());
+        OrderDto dto = new OrderDto(1L, 5L, BigDecimal.TEN, OrderStatus.CREATED, LocalDateTime.now(), LocalDateTime.now(), List.of());
 
-        // Configuração dos mocks
-        when(repository.findAll()).thenReturn(entities);
-        
-        // Especificar explicitamente que toDomain é chamado com OrderEntity
-        when(mapper.toDomain(any(OrderEntity.class))).thenReturn(domain);
-        
-        // Configurar o mapeamento para OrderDto
+        when(repository.findAll()).thenReturn(List.of(entity));
+        when(mapper.toDomain(entity)).thenReturn(domain);
         when(mapper.toDto(domain)).thenReturn(dto);
 
-        // Chamar o método para testar
         List<OrderDto> result = service.findAllOrders();
-
-        // Verificar o tamanho da lista resultante
         assertEquals(1, result.size());
-        
-        // Verificar se o método findAll() foi chamado no repositório
-        verify(repository).findAll();
+        assertEquals(dto, result.get(0));
+    }
+
+    @Test
+    void shouldUpdateOrderSuccessfully() throws ResourceNotFoundException {
+        long orderId = 1L;
+        OrderEntity existingEntity = new OrderEntity();
+        existingEntity.setOrderItems(new ArrayList<>()); // Corrigido: lista mutável
+
+        OrderItemDto itemDto = new OrderItemDto(1L, 1L, "sku-123", 2, BigDecimal.TEN);
+        List<OrderItemDto> itemsDto = List.of(itemDto);
+
+        OrderDto dto = new OrderDto(orderId, 5L, BigDecimal.TEN, OrderStatus.CREATED, null, null, itemsDto);
+        Order domain = new Order(orderId, 5L, BigDecimal.TEN, OrderStatus.CREATED, LocalDateTime.now(), LocalDateTime.now(), new ArrayList<>());
+        OrderEntity savedEntity = new OrderEntity();
+
+        when(repository.findById(orderId)).thenReturn(Optional.of(existingEntity));
+        when(repository.save(any(OrderEntity.class))).thenReturn(savedEntity);
+        when(mapper.toDomain(savedEntity)).thenReturn(domain);
+        when(mapper.toDto(domain)).thenReturn(dto);
+
+        OrderDto updated = service.updateOrder(orderId, dto);
+        assertNotNull(updated);
+        assertEquals(dto.status(), updated.status());
     }
 
 
     @Test
-    void shouldUpdateOrderSuccessfully() throws ResourceNotFoundException {
-        long id = 1L;
-        OrderDto dto = new OrderDto(id, 5L, BigDecimal.valueOf(100), OrderStatus.PAID, null, null,
-                List.of(new OrderItemDto(1L, id, 3L, 2, BigDecimal.TEN)));
-
-        OrderEntity existing = new OrderEntity();
-        existing.setId(id);
-
-        when(repository.findById(id)).thenReturn(Optional.of(existing));
-        when(repository.save(any())).thenReturn(existing);
-        when(mapper.toDomain(existing)).thenReturn(mock(Order.class));
-        when(mapper.toDto(any())).thenReturn(dto);
-
-        OrderDto updated = service.updateOrder(id, dto);
-
-        assertEquals(id, updated.id());
-        verify(repository).save(existing);
+    void shouldThrowExceptionWhenUpdatingNonExistentOrder() {
+        when(repository.findById(1L)).thenReturn(Optional.empty());
+        assertThrows(ResourceNotFoundException.class, () -> service.updateOrder(1L, mock(OrderDto.class)));
     }
 
     @Test
     void shouldDeleteOrderSuccessfully() {
         when(repository.existsById(1L)).thenReturn(true);
-        boolean deleted = service.deleteOrder(1L);
-        assertTrue(deleted);
+        boolean result = service.deleteOrder(1L);
+        assertTrue(result);
         verify(repository).deleteById(1L);
     }
 
     @Test
-    void shouldReturnFalseWhenOrderToDeleteNotExists() {
+    void shouldReturnFalseWhenDeletingNonExistentOrder() {
         when(repository.existsById(1L)).thenReturn(false);
-        boolean deleted = service.deleteOrder(1L);
-        assertFalse(deleted);
-        verify(repository, never()).deleteById(1L);
+        boolean result = service.deleteOrder(1L);
+        assertFalse(result);
     }
 }

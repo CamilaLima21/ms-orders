@@ -1,13 +1,14 @@
 package br.com.fiap.msorders.application.mapper;
 
+import java.util.List;
+import java.util.stream.Collectors;
+
+import org.springframework.stereotype.Component;
+
 import br.com.fiap.msorders.application.dto.OrderItemDto;
 import br.com.fiap.msorders.domain.model.OrderItem;
 import br.com.fiap.msorders.infrastructure.persistence.entity.OrderEntity;
 import br.com.fiap.msorders.infrastructure.persistence.entity.OrderItemEntity;
-import org.springframework.stereotype.Component;
-
-import java.util.List;
-import java.util.stream.Collectors;
 
 @Component
 public class OrderItemMapper {
@@ -17,7 +18,7 @@ public class OrderItemMapper {
 
         OrderItemEntity entity = new OrderItemEntity();
         entity.setId(domain.getId());
-        entity.setProductId(domain.getProductId());
+        entity.setProductSku(domain.getProductSku());
         entity.setQuantity(domain.getQuantity());
         entity.setPrice(domain.getPrice());
         entity.setOrder(order);
@@ -30,7 +31,7 @@ public class OrderItemMapper {
         return new OrderItem(
             entity.getId(),
             entity.getOrder() != null ? entity.getOrder().getId() : 0,
-            entity.getProductId(),
+            entity.getProductSku(),
             entity.getQuantity(),
             entity.getPrice()
         );
@@ -42,14 +43,17 @@ public class OrderItemMapper {
         return new OrderItemDto(
             domain.getId(),
             domain.getOrderId(),
-            domain.getProductId(),
+            domain.getProductSku(),
             domain.getQuantity(),
             domain.getPrice()
         );
     }
 
+    
     public OrderItemDto toDto(OrderItemEntity entity) {
-        return toDto(toDomain(entity));
+        if (entity == null) return null;
+        
+        return toDto(toDomain(entity)); 
     }
 
     public List<OrderItemDto> toDtoList(List<OrderItemEntity> entities) {
@@ -62,7 +66,7 @@ public class OrderItemMapper {
         return new OrderItem(
             dto.id(),
             dto.orderId(),
-            dto.productId(),
+            dto.productSku(),
             dto.quantity(),
             dto.price()
         );
@@ -73,7 +77,7 @@ public class OrderItemMapper {
 
         OrderItemEntity entity = new OrderItemEntity();
         entity.setId(dto.id());
-        entity.setProductId(dto.productId());
+        entity.setProductSku(dto.productSku());
         entity.setQuantity(dto.quantity());
         entity.setPrice(dto.price());
         entity.setOrder(order);
@@ -83,7 +87,7 @@ public class OrderItemMapper {
     public void updateFromDto(OrderItemDto dto, OrderItemEntity entity, OrderEntity order) {
         if (dto == null || entity == null || order == null) return;
 
-        entity.setProductId(dto.productId());
+        entity.setProductSku(dto.productSku());
         entity.setQuantity(dto.quantity());
         entity.setPrice(dto.price());
         entity.setOrder(order);

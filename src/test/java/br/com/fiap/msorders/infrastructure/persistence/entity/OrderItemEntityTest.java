@@ -1,20 +1,24 @@
 package br.com.fiap.msorders.infrastructure.persistence.entity;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.math.BigDecimal;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import br.com.fiap.msorders.domain.enums.OrderStatus;
-
-import java.math.BigDecimal;
-
-import static org.junit.jupiter.api.Assertions.*;
 
 class OrderItemEntityTest {
 
     private OrderEntity orderEntity;
     private OrderItemEntity orderItemEntity;
 
-    private long productId;
+    private String productSku;
     private int quantity;
     private BigDecimal price;
 
@@ -28,13 +32,13 @@ class OrderItemEntityTest {
         orderEntity.setStatus(OrderStatus.CREATED);
 
         // Setup dados para OrderItemEntity
-        productId = 101L;
+        productSku = "SKU101";
         quantity = 2;
         price = BigDecimal.valueOf(50.00);
 
         // Criar e associar a OrderItemEntity
         orderItemEntity = new OrderItemEntity();
-        orderItemEntity.setProductId(productId);
+        orderItemEntity.setProductSku(productSku);
         orderItemEntity.setQuantity(quantity);
         orderItemEntity.setPrice(price);
         orderEntity.addOrderItem(orderItemEntity); // usa método seguro
@@ -44,7 +48,7 @@ class OrderItemEntityTest {
     void shouldCreateOrderItemEntitySuccessfully() {
         assertNotNull(orderItemEntity);
         assertEquals(orderEntity, orderItemEntity.getOrder());
-        assertEquals(productId, orderItemEntity.getProductId());
+        assertEquals(productSku, orderItemEntity.getProductSku());
         assertEquals(quantity, orderItemEntity.getQuantity());
         assertEquals(price, orderItemEntity.getPrice());
     }
@@ -52,7 +56,7 @@ class OrderItemEntityTest {
     @Test
     void shouldAddOrderItemToOrderSuccessfully() {
         OrderItemEntity newItem = new OrderItemEntity();
-        newItem.setProductId(102L);
+        newItem.setProductSku("SKU102");
         newItem.setQuantity(3);
         newItem.setPrice(BigDecimal.valueOf(60.00));
 
@@ -82,9 +86,9 @@ class OrderItemEntityTest {
     }
 
     @Test
-    void shouldUpdateProductIdSuccessfully() {
-        orderItemEntity.setProductId(103L);
-        assertEquals(103L, orderItemEntity.getProductId());
+    void shouldUpdateProductSkuSuccessfully() {
+        orderItemEntity.setProductSku("SKU103");
+        assertEquals("SKU103", orderItemEntity.getProductSku());
     }
 
     @Test
@@ -116,5 +120,19 @@ class OrderItemEntityTest {
         OrderItemEntity item2 = new OrderItemEntity();
         item2.setQuantity(-1);
         assertEquals(-1, item2.getQuantity());
+    }
+
+    @Test
+    void shouldThrowExceptionForInvalidQuantity() {
+        assertThrows(IllegalArgumentException.class, () -> {
+            new OrderItemEntity(orderEntity, "SKU104", -1, BigDecimal.valueOf(50.00));
+        });
+    }
+
+    @Test
+    void shouldThrowExceptionForInvalidPrice() {
+        assertThrows(IllegalArgumentException.class, () -> {
+            new OrderItemEntity(orderEntity, "SKU105", 1, BigDecimal.valueOf(-50.00));
+        });
     }
 }
