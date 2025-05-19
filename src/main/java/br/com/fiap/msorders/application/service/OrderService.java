@@ -56,12 +56,23 @@ public class OrderService {
 
         productServiceClient.validateSkus(skus);
 
-        Order order = orderMapper.toDomain(orderDto);
-        order.setStatus(OrderStatus.CREATED);
-        order.setCreatedAt(LocalDateTime.now());
-        order.setUpdatedAt(LocalDateTime.now());
+        OrderEntity orderEntity = new OrderEntity();
+        orderEntity.setClientId(orderDto.clientId());
+        orderEntity.setTotal(orderDto.total());
+        orderEntity.setStatus(OrderStatus.CREATED);
+        orderEntity.setCreatedAt(LocalDateTime.now());
+        orderEntity.setUpdatedAt(LocalDateTime.now());
 
-        OrderEntity saved = orderRepository.save(orderMapper.toEntity(order));
+        for (OrderItemDto itemDto : orderDto.items()) {
+            OrderItemEntity itemEntity = new OrderItemEntity();
+            itemEntity.setProductSku(itemDto.productSku());
+            itemEntity.setQuantity(itemDto.quantity());
+            itemEntity.setPrice(itemDto.price());
+            orderEntity.addOrderItem(itemEntity);
+        }
+
+        OrderEntity saved = orderRepository.save(orderEntity);
+        
         return orderMapper.toDto(orderMapper.toDomain(saved));
     }
 
