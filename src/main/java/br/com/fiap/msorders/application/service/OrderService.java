@@ -10,7 +10,6 @@ import br.com.fiap.msorders.application.dto.OrderDto;
 import br.com.fiap.msorders.application.dto.OrderItemDto;
 import br.com.fiap.msorders.application.mapper.OrderMapper;
 import br.com.fiap.msorders.domain.enums.OrderStatus;
-import br.com.fiap.msorders.domain.model.Order;
 import br.com.fiap.msorders.infrastructure.integration.service.ClientServiceClient;
 import br.com.fiap.msorders.infrastructure.integration.service.ProductServiceClient;
 import br.com.fiap.msorders.infrastructure.persistence.entity.OrderEntity;
