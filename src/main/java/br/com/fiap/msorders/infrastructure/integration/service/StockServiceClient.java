@@ -23,4 +23,12 @@ public class StockServiceClient {
             throw new StockNotFoundException(sku);
         }
     }
+    
+    public void increaseStock(String sku, int quantity) {
+        try {
+            stockClient.increaseStock(sku, quantity);
+        } catch (FeignException e) {
+            throw new RuntimeException("Failed to increase stock for SKU: " + sku, e);
+        }
+    }
 }

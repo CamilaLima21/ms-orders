@@ -59,12 +59,18 @@ public class OrderService {
 
         productServiceClient.validateSkus(skus);
         
+        // Check stock for each item
         for (OrderItemDto item : orderDto.items()) {
             StockDto stock = stockServiceClient.searchStock(item.productSku());
             if (stock.quantity() < item.quantity()) {
                 throw new IllegalArgumentException("Insufficient stock for product SKU: " + item.productSku() +
                     ". Requested: " + item.quantity() + ", Available: " + stock.quantity());
             }
+        }
+        
+        // Decrease stock for each item
+        for (OrderItemDto item : orderDto.items()) {
+            stockServiceClient.increaseStock(item.productSku(), item.quantity());
         }
 
         OrderEntity orderEntity = new OrderEntity();

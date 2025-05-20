@@ -4,6 +4,8 @@ import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 
 import br.com.fiap.msorders.application.dto.StockDto;
 
@@ -11,4 +13,7 @@ import br.com.fiap.msorders.application.dto.StockDto;
 public interface StockClient {
 	@GetMapping("/stocks/sku/{sku}")
 	ResponseEntity<StockDto> searchStock(@PathVariable String sku);
+	
+	@PostMapping("/stocks/decrease")
+	ResponseEntity<Void> increaseStock(@RequestParam("sku") String sku, @RequestParam("quantity") int quantity);
 }
