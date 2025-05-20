@@ -1,5 +1,6 @@
 package br.com.fiap.msorders.application.service;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -58,7 +59,7 @@ public class OrderService {
 
         OrderEntity orderEntity = new OrderEntity();
         orderEntity.setClientId(orderDto.clientId());
-        orderEntity.setTotal(orderDto.total());
+        orderEntity.setTotal(calculateTotal(orderDto.items()));
         orderEntity.setStatus(OrderStatus.CREATED);
         orderEntity.setCreatedAt(LocalDateTime.now());
         orderEntity.setUpdatedAt(LocalDateTime.now());
@@ -70,7 +71,7 @@ public class OrderService {
             itemEntity.setPrice(itemDto.price());
             orderEntity.addOrderItem(itemEntity);
         }
-
+		orderEntity.getOrderItems().forEach(item -> item.setOrder(orderEntity));
         OrderEntity saved = orderRepository.save(orderEntity);
         
         return orderMapper.toDto(orderMapper.toDomain(saved));
@@ -127,5 +128,11 @@ public class OrderService {
             return true;
         }
         return false;
+    }
+    
+    private BigDecimal calculateTotal(List<OrderItemDto> items) {
+        return items.stream()
+            .map(item -> item.price().multiply(BigDecimal.valueOf(item.quantity())))
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 }
