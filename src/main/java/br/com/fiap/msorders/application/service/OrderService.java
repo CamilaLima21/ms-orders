@@ -9,10 +9,12 @@ import org.springframework.stereotype.Service;
 
 import br.com.fiap.msorders.application.dto.OrderDto;
 import br.com.fiap.msorders.application.dto.OrderItemDto;
+import br.com.fiap.msorders.application.dto.StockDto;
 import br.com.fiap.msorders.application.mapper.OrderMapper;
 import br.com.fiap.msorders.domain.enums.OrderStatus;
 import br.com.fiap.msorders.infrastructure.integration.service.ClientServiceClient;
 import br.com.fiap.msorders.infrastructure.integration.service.ProductServiceClient;
+import br.com.fiap.msorders.infrastructure.integration.service.StockServiceClient;
 import br.com.fiap.msorders.infrastructure.persistence.entity.OrderEntity;
 import br.com.fiap.msorders.infrastructure.persistence.entity.OrderItemEntity;
 import br.com.fiap.msorders.infrastructure.persistence.repository.OrderRepository;
@@ -26,14 +28,15 @@ public class OrderService {
     private final OrderMapper orderMapper;
     private final ClientServiceClient clientServiceClient;
     private final ProductServiceClient productServiceClient;
-
+    private final StockServiceClient stockServiceClient;
 
     public OrderService(OrderRepository orderRepository, OrderMapper orderMapper,
-    		ClientServiceClient clientServiceClient, ProductServiceClient productServiceClient) {
+    		ClientServiceClient clientServiceClient, ProductServiceClient productServiceClient, StockServiceClient stockServiceClient) {
         this.orderRepository = orderRepository;
         this.orderMapper = orderMapper;
         this.clientServiceClient = clientServiceClient;
         this.productServiceClient = productServiceClient;
+        this.stockServiceClient = stockServiceClient;        
     }
 
     @Transactional
@@ -55,6 +58,14 @@ public class OrderService {
                 .toList();
 
         productServiceClient.validateSkus(skus);
+        
+        for (OrderItemDto item : orderDto.items()) {
+            StockDto stock = stockServiceClient.searchStock(item.productSku());
+            if (stock.quantity() < item.quantity()) {
+                throw new IllegalArgumentException("Insufficient stock for product SKU: " + item.productSku() +
+                    ". Requested: " + item.quantity() + ", Available: " + stock.quantity());
+            }
+        }
 
         OrderEntity orderEntity = new OrderEntity();
         orderEntity.setClientId(orderDto.clientId());

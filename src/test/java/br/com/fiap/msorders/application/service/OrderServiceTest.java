@@ -24,11 +24,13 @@ import org.mockito.MockitoAnnotations;
 
 import br.com.fiap.msorders.application.dto.OrderDto;
 import br.com.fiap.msorders.application.dto.OrderItemDto;
+import br.com.fiap.msorders.application.dto.StockDto;
 import br.com.fiap.msorders.application.mapper.OrderMapper;
 import br.com.fiap.msorders.domain.enums.OrderStatus;
 import br.com.fiap.msorders.domain.model.Order;
 import br.com.fiap.msorders.infrastructure.integration.service.ClientServiceClient;
 import br.com.fiap.msorders.infrastructure.integration.service.ProductServiceClient;
+import br.com.fiap.msorders.infrastructure.integration.service.StockServiceClient;
 import br.com.fiap.msorders.infrastructure.persistence.entity.OrderEntity;
 import br.com.fiap.msorders.infrastructure.persistence.entity.OrderItemEntity;
 import br.com.fiap.msorders.infrastructure.persistence.repository.OrderRepository;
@@ -44,6 +46,9 @@ class OrderServiceTest {
 
     @Mock
     private OrderMapper mapper;
+    
+    @Mock
+    private StockServiceClient stockServiceClient;
 
     @Mock
     private ClientServiceClient clientServiceClient;
@@ -93,6 +98,7 @@ class OrderServiceTest {
         when(repository.save(any(OrderEntity.class))).thenReturn(savedEntity);
         when(mapper.toDomain(savedEntity)).thenReturn(domain);
         when(mapper.toDto(domain)).thenReturn(expectedDto);
+        when(stockServiceClient.searchStock("sku-123")).thenReturn(new StockDto(null, "sku-123", 10)); // Corrected mock
 
         OrderDto result = service.createOrder(dto);
 

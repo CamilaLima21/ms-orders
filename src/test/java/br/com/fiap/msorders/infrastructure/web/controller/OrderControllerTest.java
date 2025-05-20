@@ -16,6 +16,9 @@ import br.com.fiap.msorders.application.dto.OrderDto;
 import br.com.fiap.msorders.application.dto.OrderItemDto;
 import br.com.fiap.msorders.application.service.OrderService;
 import br.com.fiap.msorders.domain.enums.OrderStatus;
+import br.com.fiap.msorders.infrastructure.integration.service.ClientServiceClient;
+import br.com.fiap.msorders.infrastructure.integration.service.ProductServiceClient;
+import br.com.fiap.msorders.infrastructure.integration.service.StockServiceClient;
 import br.com.fiap.msorders.infrastructure.web.exceptions.ResourceNotFoundException;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -23,6 +26,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
@@ -39,6 +43,15 @@ public class OrderControllerTest {
 
     @Mock
     private OrderService orderService;
+    
+    @MockBean
+    private ClientServiceClient clientServiceClient;
+
+    @MockBean
+    private ProductServiceClient productServiceClient;
+
+    @MockBean
+    private StockServiceClient stockServiceClient;
 
     @InjectMocks
     private OrderController orderController;
