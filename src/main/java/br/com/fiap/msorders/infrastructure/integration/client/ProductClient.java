@@ -10,9 +10,12 @@ import org.springframework.web.bind.annotation.RequestParam;
 
 import br.com.fiap.msorders.application.dto.ProductDto;
 
-@FeignClient(name = "ms-products", url = "http://localhost:8082/products/")
+@FeignClient(name = "ms-products", url = "${ms.products.url}")
 public interface ProductClient {
-	@GetMapping("/sku")
+	@GetMapping("/products/sku")
     List<ProductDto> validateSkus(@RequestParam("skus") List<String> skus);
     
 }
+
+
+

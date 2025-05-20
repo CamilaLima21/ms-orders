@@ -9,7 +9,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 
 import br.com.fiap.msorders.application.dto.StockDto;
 
-@FeignClient(name = "ms-stock", url = "http://localhost:8080")
+@FeignClient(name = "ms-stock", url = "${ms.stock.url}")
 public interface StockClient {
 	@GetMapping("/stocks/sku/{sku}")
 	ResponseEntity<StockDto> searchStock(@PathVariable String sku);
