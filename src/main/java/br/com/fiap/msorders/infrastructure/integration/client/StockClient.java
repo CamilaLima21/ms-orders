@@ -14,5 +14,8 @@ public interface StockClient {
 	ResponseEntity<StockDto> searchStock(@PathVariable String sku);
 	
 	@PostMapping("/stocks/decrease")
+	ResponseEntity<Void> decreaseStock(@RequestParam("sku") String sku, @RequestParam("quantity") int quantity);
+	
+	@PostMapping("/stocks/increase")
 	ResponseEntity<Void> increaseStock(@RequestParam("sku") String sku, @RequestParam("quantity") int quantity);
 }

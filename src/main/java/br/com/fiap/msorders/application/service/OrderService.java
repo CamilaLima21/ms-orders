@@ -8,6 +8,7 @@ import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
 import br.com.fiap.msorders.application.dto.OrderDto;
@@ -16,6 +17,7 @@ import br.com.fiap.msorders.infrastructure.integration.dto.CreditCardPaymentRequ
 import br.com.fiap.msorders.infrastructure.integration.dto.CreditCardPaymentResponseDto;
 import br.com.fiap.msorders.infrastructure.integration.dto.QRCodePaymentRequestDto;
 import br.com.fiap.msorders.infrastructure.integration.dto.QRCodePaymentResponseDto;
+import br.com.fiap.msorders.infrastructure.integration.dto.StatusDto;
 import br.com.fiap.msorders.infrastructure.integration.dto.StockDto;
 import br.com.fiap.msorders.infrastructure.integration.dto.TokenResponseDto;
 import br.com.fiap.msorders.application.mapper.OrderMapper;
@@ -85,7 +87,7 @@ public class OrderService {
         
         // Decrease stock for each item
         for (OrderItemDto item : orderDto.items()) {
-            stockServiceClient.increaseStock(item.productSku(), item.quantity());
+            stockServiceClient.decreaseStock(item.productSku(), item.quantity());
         }
 
         OrderEntity orderEntity = new OrderEntity();
@@ -109,7 +111,7 @@ public class OrderService {
     }
 
     @Transactional
-	public OrderDto processPayment(long id, String paymentMethod) throws ResourceNotFoundException {
+	public OrderDto processPayment(long id, String paymentMethod) throws ResourceNotFoundException, InterruptedException {
 		OrderEntity orderEntity = orderRepository.findById(id)
 				.orElseThrow(() -> new ResourceNotFoundException("Order not found"));
 
@@ -158,6 +160,29 @@ public class OrderService {
 	        
 	        QRCodePaymentResponseDto qrCodeResponse = paymentServiceClient.generateQRCodePayment(qrCodeRequest, "Bearer " + tokenResponse.access_token());
 	        logger.info("QR Code Payment Response: {}", qrCodeResponse);
+	        
+	        for (int i = 0; i < 6; i++) {
+	            Thread.sleep(5000);
+
+	            ResponseEntity<StatusDto> statusResponse = paymentServiceClient.getStatus(
+	                String.valueOf(orderEntity.getId()), 
+	                "Bearer " + tokenResponse.access_token()
+	            );
+
+	            StatusDto status = statusResponse.getBody();
+	            logger.info("Payment Status: {}", status);
+
+	            if (status != null && "APPROVED".equalsIgnoreCase(status.status())) {
+	                logger.info("Payment confirmed for Order ID: {}", orderEntity.getId());
+	                break;
+	            }
+
+	            if (i == 5) {
+	                logger.warn("Payment not confirmed for Order ID: {}", orderEntity.getId());
+	                throw new IllegalArgumentException("Payment not confirmed");
+	            }
+	        }
+	        
 	        break;
 	        
 	    default:

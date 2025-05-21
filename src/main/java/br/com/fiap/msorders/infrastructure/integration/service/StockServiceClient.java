@@ -31,4 +31,12 @@ public class StockServiceClient {
             throw new RuntimeException("Failed to increase stock for SKU: " + sku, e);
         }
     }
+    
+    public void decreaseStock(String sku, int quantity) {
+        try {
+            stockClient.decreaseStock(sku, quantity);
+        } catch (FeignException e) {
+            throw new RuntimeException("Failed to decrease stock for SKU: " + sku, e);
+        }
+    }
 }

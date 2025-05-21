@@ -5,9 +5,11 @@ import br.com.fiap.msorders.infrastructure.integration.dto.CreditCardPaymentRequ
 import br.com.fiap.msorders.infrastructure.integration.dto.CreditCardPaymentResponseDto;
 import br.com.fiap.msorders.infrastructure.integration.dto.QRCodePaymentRequestDto;
 import br.com.fiap.msorders.infrastructure.integration.dto.QRCodePaymentResponseDto;
+import br.com.fiap.msorders.infrastructure.integration.dto.StatusDto;
 import br.com.fiap.msorders.infrastructure.integration.dto.TokenRequestDto;
 import br.com.fiap.msorders.infrastructure.integration.dto.TokenResponseDto;
 
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -30,5 +32,9 @@ public class PaymentServiceClient {
 
     public QRCodePaymentResponseDto generateQRCodePayment(QRCodePaymentRequestDto request, String token) {
         return paymentClient.generateQRCodePayment(request, token);
+    }
+    
+    public ResponseEntity<StatusDto> getStatus(String paymentId, String token) {
+        return paymentClient.getStatus(paymentId, token);
     }
 }
