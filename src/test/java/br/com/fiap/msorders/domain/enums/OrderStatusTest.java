@@ -9,7 +9,9 @@ class OrderStatusTest {
     void shouldReturnCorrectEnumFromString() {
         // Testa a conversão de string para enum
         assertEquals(OrderStatus.CREATED, OrderStatus.valueOf("CREATED"));
-        assertEquals(OrderStatus.PAID, OrderStatus.valueOf("PAID"));
+        assertEquals(OrderStatus.CLOSED_SUCCESS, OrderStatus.valueOf("CLOSED_SUCCESS"));
+        assertEquals(OrderStatus.CLOSED_SUCCESS, OrderStatus.valueOf("CLOSED_FAILED_NOT_STOCK"));
+        assertEquals(OrderStatus.CLOSED_SUCCESS, OrderStatus.valueOf("CLOSED_FAILED_NOT_PAID"));
         assertEquals(OrderStatus.CANCELLED, OrderStatus.valueOf("CANCELLED"));
     }
 
@@ -24,15 +26,15 @@ class OrderStatusTest {
         // Testa se os valores do enum estão corretos
         assertEquals(3, OrderStatus.values().length);
         assertTrue(OrderStatus.values()[0] == OrderStatus.CREATED);
-        assertTrue(OrderStatus.values()[1] == OrderStatus.PAID);
-        assertTrue(OrderStatus.values()[2] == OrderStatus.CANCELLED);
+        assertTrue(OrderStatus.values()[1] == OrderStatus.CLOSED_SUCCESS);
+        assertTrue(OrderStatus.values()[4] == OrderStatus.CANCELLED);
     }
 
     @Test
     void shouldCompareEnumValuesCorrectly() {
         // Testa se a comparação entre valores do enum funciona corretamente
         assertTrue(OrderStatus.CREATED == OrderStatus.CREATED);
-        assertFalse(OrderStatus.PAID == OrderStatus.CANCELLED);
-        assertFalse(OrderStatus.CREATED == OrderStatus.PAID);
+        assertFalse(OrderStatus.CLOSED_SUCCESS == OrderStatus.CANCELLED);
+        assertFalse(OrderStatus.CREATED == OrderStatus.CLOSED_SUCCESS);
     }
 }

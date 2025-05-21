@@ -128,13 +128,13 @@ class OrderEntityTest {
     void shouldUpdateOrderEntityFields() {
         // Ação: atualizar os campos
         orderEntity.setTotal(BigDecimal.valueOf(600));
-        orderEntity.setStatus(OrderStatus.PAID);
+        orderEntity.setStatus(OrderStatus.CLOSED_SUCCESS);
         LocalDateTime newUpdatedAt = LocalDateTime.now().plusMinutes(10);
         orderEntity.setUpdatedAt(newUpdatedAt);
 
         // Assert: verificar os valores atualizados
         assertEquals(BigDecimal.valueOf(600), orderEntity.getTotal());
-        assertEquals(OrderStatus.PAID, orderEntity.getStatus());
+        assertEquals(OrderStatus.CLOSED_SUCCESS, orderEntity.getStatus());
         assertEquals(newUpdatedAt, orderEntity.getUpdatedAt());
     }
 

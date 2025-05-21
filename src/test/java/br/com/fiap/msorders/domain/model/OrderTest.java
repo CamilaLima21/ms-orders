@@ -45,7 +45,7 @@ class OrderTest {
         long orderId = 1L;
         long clientId = 5L;
         BigDecimal total = BigDecimal.valueOf(100);
-        OrderStatus status = OrderStatus.PAID;
+        OrderStatus status = OrderStatus.CLOSED_SUCCESS;
         LocalDateTime createdAt = LocalDateTime.now();
         LocalDateTime updatedAt = LocalDateTime.now();
         

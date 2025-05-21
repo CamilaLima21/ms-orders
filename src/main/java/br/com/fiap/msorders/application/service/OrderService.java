@@ -75,13 +75,17 @@ public class OrderService {
                 .toList();
 
         productServiceClient.validateSkus(skus);
+                
+        OrderEntity orderEntity = new OrderEntity();
+        orderEntity.setStatus(OrderStatus.CREATED);
         
         // Check stock for each item
         for (OrderItemDto item : orderDto.items()) {
             StockDto stock = stockServiceClient.searchStock(item.productSku());
             if (stock.quantity() < item.quantity()) {
-                throw new IllegalArgumentException("Insufficient stock for product SKU: " + item.productSku() +
-                    ". Requested: " + item.quantity() + ", Available: " + stock.quantity());
+            	logger.error("Insufficient stock for product SKU: {}. Requested: {}, Available: {}", 
+            		    item.productSku(), item.quantity(), stock.quantity());
+            	 orderEntity.setStatus(OrderStatus.FAILED_NOT_STOCK);
             }
         }
         
@@ -89,11 +93,8 @@ public class OrderService {
         for (OrderItemDto item : orderDto.items()) {
             stockServiceClient.decreaseStock(item.productSku(), item.quantity());
         }
-
-        OrderEntity orderEntity = new OrderEntity();
         orderEntity.setClientId(orderDto.clientId());
         orderEntity.setTotal(calculateTotal(orderDto.items()));
-        orderEntity.setStatus(OrderStatus.CREATED);
         orderEntity.setCreatedAt(LocalDateTime.now());
         orderEntity.setUpdatedAt(LocalDateTime.now());
 
@@ -116,7 +117,8 @@ public class OrderService {
 				.orElseThrow(() -> new ResourceNotFoundException("Order not found"));
 
 		TokenResponseDto tokenResponse = paymentServiceClient.generateToken("client_credentials", String.valueOf(orderEntity.getClientId()), "client_secret", "oob");
-			
+		boolean paymentSuccessful = false;
+		
 		switch (paymentMethod) {
 	    case "CARD":
 
@@ -147,6 +149,13 @@ public class OrderService {
 	        );
 	        CreditCardPaymentResponseDto creditCardResponse = paymentServiceClient.processCreditCardPayment(creditCardRequest, "Bearer " + tokenResponse.access_token());
 	        logger.info("Card Payment Response: {}", creditCardResponse);
+	        if (creditCardResponse.status() != null && creditCardResponse.status().equalsIgnoreCase("APPROVED")) {
+                logger.info("Payment confirmed for Order ID: {}", orderEntity.getId());
+                paymentSuccessful = true;
+            } else {
+                logger.warn("Payment not confirmed for Order ID: {}", orderEntity.getId());
+                paymentSuccessful = false;
+            }
 	        break;
 	        
 	    case "PIX":
@@ -179,7 +188,8 @@ public class OrderService {
 
 	            if (i == 5) {
 	                logger.warn("Payment not confirmed for Order ID: {}", orderEntity.getId());
-	                throw new IllegalArgumentException("Payment not confirmed");
+	                
+	                orderEntity.setStatus(OrderStatus.FAILED_NOT_PAID);
 	            }
 	        }
 	        
@@ -190,7 +200,11 @@ public class OrderService {
 	}
 
 		// Payment Update
-		orderEntity.setStatus(OrderStatus.PAID);
+		if (paymentSuccessful) {
+			orderEntity.setStatus(OrderStatus.CLOSED_SUCCESS);
+		} else {
+			orderEntity.setStatus(OrderStatus.FAILED_NOT_PAID);
+		}
 		orderEntity.setUpdatedAt(LocalDateTime.now());
 
 		OrderEntity saved = orderRepository.save(orderEntity);
