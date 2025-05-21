@@ -204,6 +204,12 @@ public class OrderService {
 			orderEntity.setStatus(OrderStatus.CLOSED_SUCCESS);
 		} else {
 			orderEntity.setStatus(OrderStatus.FAILED_NOT_PAID);
+			
+			// Rollback stock if payment fails
+			for (OrderItemEntity item : orderEntity.getOrderItems()) {
+			    stockServiceClient.decreaseStock(item.getProductSku(), item.getQuantity());
+			}
+			
 		}
 		orderEntity.setUpdatedAt(LocalDateTime.now());
 
