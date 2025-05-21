@@ -3,9 +3,11 @@ package br.com.fiap.msorders.application.service;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -21,14 +23,20 @@ import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import org.springframework.http.ResponseEntity;
 
 import br.com.fiap.msorders.application.dto.OrderDto;
 import br.com.fiap.msorders.application.dto.OrderItemDto;
 import br.com.fiap.msorders.application.mapper.OrderMapper;
 import br.com.fiap.msorders.domain.enums.OrderStatus;
 import br.com.fiap.msorders.domain.model.Order;
+import br.com.fiap.msorders.infrastructure.integration.dto.CreditCardPaymentResponseDto;
+import br.com.fiap.msorders.infrastructure.integration.dto.QRCodePaymentResponseDto;
+import br.com.fiap.msorders.infrastructure.integration.dto.StatusDto;
 import br.com.fiap.msorders.infrastructure.integration.dto.StockDto;
+import br.com.fiap.msorders.infrastructure.integration.dto.TokenResponseDto;
 import br.com.fiap.msorders.infrastructure.integration.service.ClientServiceClient;
+import br.com.fiap.msorders.infrastructure.integration.service.PaymentServiceClient;
 import br.com.fiap.msorders.infrastructure.integration.service.ProductServiceClient;
 import br.com.fiap.msorders.infrastructure.integration.service.StockServiceClient;
 import br.com.fiap.msorders.infrastructure.persistence.entity.OrderEntity;
@@ -55,6 +63,9 @@ class OrderServiceTest {
 
     @Mock
     private ProductServiceClient productServiceClient;
+    
+    @Mock
+    private PaymentServiceClient paymentServiceClient;
 
     @BeforeEach
     void setup() {
@@ -146,6 +157,78 @@ class OrderServiceTest {
         when(repository.findById(1L)).thenReturn(Optional.empty());
         assertThrows(ResourceNotFoundException.class, () -> service.findOrderById(1L));
     }
+    
+    @Test
+    void testProcessPayment() throws Exception {
+        // Arrange
+        long orderId = 1L;
+        String paymentMethod = "CARD";
+
+        OrderEntity orderEntity = new OrderEntity();
+        orderEntity.setId(orderId);
+        orderEntity.setClientId(123L);
+        orderEntity.setTotal(BigDecimal.valueOf(100.00));
+        orderEntity.setStatus(OrderStatus.CREATED);
+
+        OrderItemEntity item = new OrderItemEntity();
+        item.setProductSku("SKU123");
+        item.setQuantity(1);
+        item.setPrice(BigDecimal.valueOf(100.00));
+        orderEntity.setOrderItems(List.of(item));
+
+        CreditCardPaymentResponseDto paymentResponse = new CreditCardPaymentResponseDto("1", "APPROVED", "Pagamento aprovado com sucesso.", "123456", 100.0, "BRL", "1");
+        
+        TokenResponseDto tokenResponse = new TokenResponseDto("access_token", "token_type", 3600, "oob");
+        when(repository.findById(orderId)).thenReturn(Optional.of(orderEntity));
+  
+		when(paymentServiceClient.generateToken(anyString(), anyString(), anyString(), anyString()))
+            .thenReturn(tokenResponse);
+        when(paymentServiceClient.processCreditCardPayment(any(), anyString()))
+            .thenReturn(paymentResponse);
+        when(repository.save(any(OrderEntity.class))).thenReturn(orderEntity);
+
+        OrderDto result = service.processPayment(orderId, paymentMethod);
+
+        assertNull(result);
+    }
+    
+    @Test
+    void testProcessPaymentPIX() throws Exception {
+        // Arrange
+        long orderId = 1L;
+        String paymentMethod = "PIX";
+
+        OrderEntity orderEntity = new OrderEntity();
+        orderEntity.setId(orderId);
+        orderEntity.setClientId(123L);
+        orderEntity.setTotal(BigDecimal.valueOf(100.00));
+        orderEntity.setStatus(OrderStatus.CREATED);
+
+        OrderItemEntity item = new OrderItemEntity();
+        item.setProductSku("SKU123");
+        item.setQuantity(1);
+        item.setPrice(BigDecimal.valueOf(100.00));
+        orderEntity.setOrderItems(List.of(item));
+
+        QRCodePaymentResponseDto qrCodePaymentResponse = new QRCodePaymentResponseDto(
+            "seller_id", "hash_qr_code", "APPROVED", null
+        );
+        
+        StatusDto statusDto = new StatusDto("seller_id", "hash_qr_code", "APPROVED", "1", 10.10, null, null);
+        
+        TokenResponseDto tokenResponse = new TokenResponseDto("access_token", "token_type", 3600, "oob");
+        when(repository.findById(orderId)).thenReturn(Optional.of(orderEntity));
+        when(paymentServiceClient.generateToken(anyString(), anyString(), anyString(), anyString()))
+            .thenReturn(tokenResponse);
+        when(paymentServiceClient.generateQRCodePayment(any(), anyString()))
+            .thenReturn(qrCodePaymentResponse); // Return QRCodePaymentResponseDto directly
+        when(repository.save(any(OrderEntity.class))).thenReturn(orderEntity);
+        when(paymentServiceClient.getStatus(anyString(), anyString()))
+        .thenReturn(ResponseEntity.ok(statusDto)); 
+
+        OrderDto result = service.processPayment(orderId, paymentMethod);
+        assertNull(result);
+    }
 
     @Test
     void shouldReturnAllOrders() {
@@ -208,4 +291,5 @@ class OrderServiceTest {
         boolean result = service.deleteOrder(1L);
         assertFalse(result);
     }
+    
 }
