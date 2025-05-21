@@ -62,4 +62,21 @@ public class OrderController {
             return ResponseEntity.notFound().build();  // 404 Not Found
         }
     }
+    
+    @PostMapping("/{id}/payment")
+    public ResponseEntity<String> processPayment(
+            @PathVariable long id,
+            @RequestParam String paymentMethod) {
+        try {
+            if (!paymentMethod.equalsIgnoreCase("PIX") && !paymentMethod.equalsIgnoreCase("CARD")) {
+                return ResponseEntity.badRequest().body("Invalid payment method. Use 'PIX' or 'CARD'.");
+            }
+            orderService.processPayment(id, paymentMethod);
+            return ResponseEntity.ok("Payment processed successfully.");
+        } catch (ResourceNotFoundException e) {
+            return ResponseEntity.notFound().build();
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Payment processing failed.");
+        }
+    }
 }

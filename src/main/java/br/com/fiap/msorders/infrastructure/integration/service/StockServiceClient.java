@@ -2,7 +2,7 @@ package br.com.fiap.msorders.infrastructure.integration.service;
 
 import org.springframework.stereotype.Service;
 
-import br.com.fiap.msorders.application.dto.StockDto;
+import br.com.fiap.msorders.infrastructure.integration.dto.StockDto;
 import br.com.fiap.msorders.infrastructure.integration.client.StockClient;
 import br.com.fiap.msorders.infrastructure.web.exceptions.StockNotFoundException;
 import feign.FeignException;

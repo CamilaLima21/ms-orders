@@ -6,8 +6,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
-
-import br.com.fiap.msorders.application.dto.StockDto;
+import br.com.fiap.msorders.infrastructure.integration.dto.StockDto;
 
 @FeignClient(name = "ms-stock", url = "${ms.stock.url}")
 public interface StockClient {

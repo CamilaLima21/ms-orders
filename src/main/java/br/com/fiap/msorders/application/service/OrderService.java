@@ -5,14 +5,23 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import br.com.fiap.msorders.application.dto.OrderDto;
 import br.com.fiap.msorders.application.dto.OrderItemDto;
-import br.com.fiap.msorders.application.dto.StockDto;
+import br.com.fiap.msorders.infrastructure.integration.dto.CreditCardPaymentRequestDto;
+import br.com.fiap.msorders.infrastructure.integration.dto.CreditCardPaymentResponseDto;
+import br.com.fiap.msorders.infrastructure.integration.dto.QRCodePaymentRequestDto;
+import br.com.fiap.msorders.infrastructure.integration.dto.QRCodePaymentResponseDto;
+import br.com.fiap.msorders.infrastructure.integration.dto.StockDto;
+import br.com.fiap.msorders.infrastructure.integration.dto.TokenResponseDto;
 import br.com.fiap.msorders.application.mapper.OrderMapper;
 import br.com.fiap.msorders.domain.enums.OrderStatus;
 import br.com.fiap.msorders.infrastructure.integration.service.ClientServiceClient;
+import br.com.fiap.msorders.infrastructure.integration.service.PaymentServiceClient;
 import br.com.fiap.msorders.infrastructure.integration.service.ProductServiceClient;
 import br.com.fiap.msorders.infrastructure.integration.service.StockServiceClient;
 import br.com.fiap.msorders.infrastructure.persistence.entity.OrderEntity;
@@ -29,14 +38,20 @@ public class OrderService {
     private final ClientServiceClient clientServiceClient;
     private final ProductServiceClient productServiceClient;
     private final StockServiceClient stockServiceClient;
+    private final PaymentServiceClient paymentServiceClient;
+    private static final Logger logger = LoggerFactory.getLogger(OrderService.class);
+    
+    @Value("${payment.seller-id}")
+    private String sellerId;
 
     public OrderService(OrderRepository orderRepository, OrderMapper orderMapper,
-    		ClientServiceClient clientServiceClient, ProductServiceClient productServiceClient, StockServiceClient stockServiceClient) {
+    		ClientServiceClient clientServiceClient, ProductServiceClient productServiceClient, StockServiceClient stockServiceClient, PaymentServiceClient paymentServiceClient) {
         this.orderRepository = orderRepository;
         this.orderMapper = orderMapper;
         this.clientServiceClient = clientServiceClient;
         this.productServiceClient = productServiceClient;
-        this.stockServiceClient = stockServiceClient;        
+        this.stockServiceClient = stockServiceClient;  
+        this.paymentServiceClient = paymentServiceClient;
     }
 
     @Transactional
@@ -93,7 +108,69 @@ public class OrderService {
         return orderMapper.toDto(orderMapper.toDomain(saved));
     }
 
+    @Transactional
+	public OrderDto processPayment(long id, String paymentMethod) throws ResourceNotFoundException {
+		OrderEntity orderEntity = orderRepository.findById(id)
+				.orElseThrow(() -> new ResourceNotFoundException("Order not found"));
 
+		TokenResponseDto tokenResponse = paymentServiceClient.generateToken("client_credentials", String.valueOf(orderEntity.getClientId()), "client_secret", "oob");
+			
+		switch (paymentMethod) {
+	    case "CARD":
+
+	        CreditCardPaymentRequestDto creditCardRequest = new CreditCardPaymentRequestDto(
+	        	sellerId,
+	            orderEntity.getTotal().doubleValue(),
+	            "BRL",
+	            new CreditCardPaymentRequestDto.Order(
+	                String.valueOf(orderEntity.getId()),
+	                orderEntity.getOrderItems().stream()
+	                    .map(item -> new CreditCardPaymentRequestDto.Order.Item(
+	                        item.getProductSku(),
+	                        item.getQuantity(),
+	                        item.getPrice().doubleValue()
+	                    ))
+	                    .toList()
+	            ),
+	            new CreditCardPaymentRequestDto.Customer(
+	                String.valueOf(orderEntity.getClientId()),
+	                "","","",""
+	            ),
+	            new CreditCardPaymentRequestDto.Credit(
+	                new CreditCardPaymentRequestDto.Credit.Card(
+	                    "","","","",""
+	                ),
+	                1
+	            )
+	        );
+	        CreditCardPaymentResponseDto creditCardResponse = paymentServiceClient.processCreditCardPayment(creditCardRequest, "Bearer " + tokenResponse.access_token());
+	        logger.info("Card Payment Response: {}", creditCardResponse);
+	        break;
+	        
+	    case "PIX":
+	    	
+	        QRCodePaymentRequestDto qrCodeRequest = new QRCodePaymentRequestDto(
+	            orderEntity.getTotal().doubleValue(),
+	            "BRL",
+	            String.valueOf(orderEntity.getId()),
+	            String.valueOf(orderEntity.getClientId())
+	        );
+	        
+	        QRCodePaymentResponseDto qrCodeResponse = paymentServiceClient.generateQRCodePayment(qrCodeRequest, "Bearer " + tokenResponse.access_token());
+	        logger.info("QR Code Payment Response: {}", qrCodeResponse);
+	        break;
+	        
+	    default:
+	        throw new IllegalArgumentException("Invalid payment method");
+	}
+
+		// Payment Update
+		orderEntity.setStatus(OrderStatus.PAID);
+		orderEntity.setUpdatedAt(LocalDateTime.now());
+
+		OrderEntity saved = orderRepository.save(orderEntity);
+		return orderMapper.toDto(orderMapper.toDomain(saved));
+	}
 
     public OrderDto findOrderById(long id) throws ResourceNotFoundException {
         OrderEntity orderEntity = orderRepository.findById(id)
@@ -151,4 +228,5 @@ public class OrderService {
             .map(item -> item.price().multiply(BigDecimal.valueOf(item.quantity())))
             .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
+    
 }
